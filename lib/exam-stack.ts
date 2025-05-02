@@ -96,6 +96,10 @@ export class ExamStack extends cdk.Stack {
       receiveMessageWaitTime: cdk.Duration.seconds(5),
     });
 
+    const queueB = new sqs.Queue(this, "QueueB", {
+      receiveMessageWaitTime: cdk.Duration.seconds(5),
+    });
+
     const lambdaYFn = new lambdanode.NodejsFunction(this, "LambdaYFn", {
       architecture: lambda.Architecture.ARM_64,
       runtime: lambda.Runtime.NODEJS_22_X,
@@ -104,8 +108,12 @@ export class ExamStack extends cdk.Stack {
       memorySize: 128,
       environment: {
         REGION: "eu-west-1",
+        QUEUE_B_URL: queueB.queueUrl,
       },
     });
+
+    // Grant Lambda Y permission to send messages to Queue B
+    queueB.grantSendMessages(lambdaYFn);
 
     // Subscribe Queue A to Topic 1 with filter for Ireland and China
     topic1.addSubscription(
