@@ -96,11 +96,38 @@ export class ExamStack extends cdk.Stack {
       receiveMessageWaitTime: cdk.Duration.seconds(5),
     });
 
-    // Subscribe Queue A to Topic 1
-    topic1.addSubscription(new subs.SqsSubscription(queueA));
+    const lambdaYFn = new lambdanode.NodejsFunction(this, "LambdaYFn", {
+      architecture: lambda.Architecture.ARM_64,
+      runtime: lambda.Runtime.NODEJS_22_X,
+      entry: `${__dirname}/../lambdas/lambdaY.ts`,
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 128,
+      environment: {
+        REGION: "eu-west-1",
+      },
+    });
 
-    // Subscribe Lambda Y directly to Topic 1
-    topic1.addSubscription(new subs.LambdaSubscription(lambdaYFn));
+    // Subscribe Queue A to Topic 1 with filter for Ireland and China
+    topic1.addSubscription(
+      new subs.SqsSubscription(queueA, {
+        filterPolicy: {
+          "address.country": sns.SubscriptionFilter.stringFilter({
+            allowlist: ["Ireland", "China"],
+          }),
+        },
+      })
+    );
+
+    // Subscribe Lambda Y to Topic 1 with filter for NOT Ireland and NOT China
+    topic1.addSubscription(
+      new subs.LambdaSubscription(lambdaYFn, {
+        filterPolicy: {
+          "address.country": sns.SubscriptionFilter.stringFilter({
+            denylist: ["Ireland", "China"],
+          }),
+        },
+      })
+    );
     
     const lambdaXFn = new lambdanode.NodejsFunction(this, "LambdaXFn", {
       architecture: lambda.Architecture.ARM_64,
@@ -115,18 +142,6 @@ export class ExamStack extends cdk.Stack {
 
     // Add SQS trigger for Lambda X
     lambdaXFn.addEventSource(new events.SqsEventSource(queueA));
-
-    const lambdaYFn = new lambdanode.NodejsFunction(this, "LambdaYFn", {
-      architecture: lambda.Architecture.ARM_64,
-      runtime: lambda.Runtime.NODEJS_22_X,
-      entry: `${__dirname}/../lambdas/lambdaY.ts`,
-      timeout: cdk.Duration.seconds(10),
-      memorySize: 128,
-      environment: {
-        REGION: "eu-west-1",
-      },
-    });
-    
   }
 }
   

@@ -9,7 +9,7 @@ export const handler: SNSHandler = async (event, context) => {
       // Parse the SNS message
       const message = JSON.parse(record.Sns.Message);
       console.log("Processing SNS message:", message);
-      // Add your message processing logic here
+      // Add your message processing logic here 
     }
   } catch (error: any) {
     console.error("Error processing SNS message:", error);
