@@ -1,7 +1,7 @@
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 
 const client = createDDbDocClient();
 
@@ -9,7 +9,6 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
   try {
     console.log("Event: ", JSON.stringify(event));
 
-    // Extract movieId from path parameters
     const movieId = event.pathParameters?.movieId;
     if (!movieId) {
       return {
@@ -21,46 +20,64 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
       };
     }
 
-    // Extract role from query parameters
     const role = event.queryStringParameters?.role;
-    if (!role) {
+
+    let response;
+    if (role) {
+      const command = new GetCommand({
+        TableName: process.env.TABLE_NAME,
+        Key: {
+          movieId: parseInt(movieId),
+          role: role,
+        },
+      });
+      response = await client.send(command);
+
+      if (!response.Item) {
+        return {
+          statusCode: 404,
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ message: "Crew member not found" }),
+        };
+      }
+
       return {
-        statusCode: 400,
+        statusCode: 200,
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ message: "Missing role parameter" }),
+        body: JSON.stringify(response.Item),
       };
-    }
+    } else { 
+      const command = new QueryCommand({
+        TableName: process.env.TABLE_NAME,
+        KeyConditionExpression: "movieId = :movieId",
+        ExpressionAttributeValues: {
+          ":movieId": parseInt(movieId),
+        },
+      });
+      response = await client.send(command);
 
-    // Query DynamoDB
-    const command = new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        movieId: parseInt(movieId),
-        role: role,
-      },
-    });
+      if (!response.Items || response.Items.length === 0) {
+        return {
+          statusCode: 404,
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ message: "No crew members found for this movie" }),
+        };
+      }
 
-    const response = await client.send(command);
-
-    if (!response.Item) {
       return {
-        statusCode: 404,
+        statusCode: 200,
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ message: "Crew member not found" }),
+        body: JSON.stringify(response.Items),
       };
     }
-
-    return {
-      statusCode: 200,
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(response.Item),
-    };
   } catch (error: any) {
     console.log(JSON.stringify(error));
     return {
