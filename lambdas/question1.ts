@@ -9,6 +9,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
   try {
     console.log("Event: ", JSON.stringify(event));
 
+    // Extract movieId from path parameters
     const movieId = event.pathParameters?.movieId;
     if (!movieId) {
       return {
@@ -20,10 +21,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
       };
     }
 
+    // Extract role from query parameters
     const role = event.queryStringParameters?.role;
 
     let response;
     if (role) {
+      // If role is provided, get specific crew member
       const command = new GetCommand({
         TableName: process.env.TABLE_NAME,
         Key: {
