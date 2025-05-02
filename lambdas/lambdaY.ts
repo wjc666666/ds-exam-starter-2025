@@ -27,7 +27,6 @@ export const handler: SNSHandler = async (event, context) => {
         console.log("Message successfully forwarded to Queue B");
       } else {
         console.log("Message has email property, processing normally");
-        // Add your normal message processing logic here
       }
     }
   } catch (error: any) {
